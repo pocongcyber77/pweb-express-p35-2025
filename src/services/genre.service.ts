@@ -18,6 +18,15 @@ export interface GenreListResult {
 
 export const genreService = {
   async create(data: CreateGenreData) {
+    // Check if genre with same name already exists
+    const existingGenre = await prisma.genre.findFirst({
+      where: { name: data.name }
+    });
+
+    if (existingGenre) {
+      throw new Error('Genre with this name already exists');
+    }
+
     const genre = await prisma.genre.create({
       data: {
         ...data,
