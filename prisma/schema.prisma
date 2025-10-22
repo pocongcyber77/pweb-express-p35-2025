@@ -1,0 +1,89 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  username    String?
+  password    String
+  email       String   @unique
+  created_at  DateTime
+  updated_at  DateTime
+
+  // Relations
+  orders      Order[]
+
+  @@map("users")
+}
+
+model Genre {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @unique
+  created_at  DateTime
+  updated_at  DateTime
+  deleted_at  DateTime?
+
+  // Relations
+  books       Book[]
+
+  @@map("genres")
+}
+
+model Book {
+  id                String    @id @default(uuid()) @db.Uuid
+  title             String    @unique
+  writer            String
+  publisher         String
+  publication_year  Int
+  description       String?
+  price             Decimal   @db.Decimal(10, 2)
+  stock_quantity    Int
+  genre_id          String    @db.Uuid
+  created_at        DateTime
+  updated_at        DateTime
+  deleted_at        DateTime?
+
+  // Relations
+  genre       Genre      @relation(fields: [genre_id], references: [id], onDelete: Restrict)
+  order_items OrderItem[]
+
+  @@map("books")
+}
+
+model Order {
+  id          String      @id @default(uuid()) @db.Uuid
+  user_id     String      @db.Uuid
+  total       Decimal     @db.Decimal(10, 2)
+  created_at  DateTime
+  updated_at  DateTime
+
+  // Relations
+  user   User        @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  items  OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String    @id @default(uuid()) @db.Uuid
+  quantity    Int
+  order_id    String    @db.Uuid
+  book_id     String    @db.Uuid
+  created_at  DateTime
+  updated_at  DateTime
+
+  // Relations
+  order  Order @relation(fields: [order_id], references: [id], onDelete: Restrict)
+  book   Book  @relation(fields: [book_id], references: [id], onDelete: Restrict)
+
+  @@map("order_items")
+}
