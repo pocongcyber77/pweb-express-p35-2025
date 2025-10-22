@@ -12,7 +12,12 @@ export const genreController = {
         message: 'Genre created successfully',
         data: genre,
       });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'Genre with this name already exists') {
+        return res.status(400).json({
+          error: 'Genre with this name already exists',
+        });
+      }
       throw error;
     }
   },
