@@ -44,6 +44,15 @@ export const booksService = {
       throw new Error('Genre not found');
     }
 
+    // Check if book with same title already exists
+    const existingBook = await prisma.book.findFirst({
+      where: { title: data.title }
+    });
+
+    if (existingBook) {
+      throw new Error('Book with this title already exists');
+    }
+
     const book = await prisma.book.create({
       data: {
         ...data,
