@@ -18,6 +18,11 @@ export const booksController = {
           error: 'Genre not found',
         });
       }
+      if (error.message === 'Book with this title already exists') {
+        return res.status(400).json({
+          error: 'Book with this title already exists',
+        });
+      }
       throw error;
     }
   },
