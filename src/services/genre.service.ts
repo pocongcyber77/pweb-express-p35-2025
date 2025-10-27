@@ -1,6 +1,12 @@
 import { prisma } from '../prisma/client';
 import { getPagination, getSkip, PaginationResult } from '../utils/pagination';
 
+function validateId(id: string, entity: string): void {
+  if (!id || typeof id !== 'string' || id.trim() === '') {
+    throw new Error(`${entity} ID is invalid or missing`);
+  }
+}
+
 export interface CreateGenreData {
   name: string;
   description?: string;
@@ -18,6 +24,11 @@ export interface GenreListResult {
 
 export const genreService = {
   async create(data: CreateGenreData) {
+    // Basic validation for name
+    if (!data.name || data.name.trim() === '') {
+      throw new Error('Genre name is required');
+    }
+    
     // Check if genre with same name already exists
     const existingGenre = await prisma.genre.findFirst({
       where: { name: data.name }
@@ -56,6 +67,8 @@ export const genreService = {
   },
 
   async findById(id: string) {
+    validateId(id, 'Genre');
+
     const genre = await prisma.genre.findUnique({
       where: { id },
       include: {
@@ -79,6 +92,16 @@ export const genreService = {
   },
 
   async update(id: string, data: UpdateGenreData) {
+    validateId(id, 'Genre');
+
+    // Optional: Basic validation for data
+    if (!data.name && !data.description) {
+      throw new Error('Update data cannot be empty');
+    }
+    if (data.name !== undefined && data.name.trim() === '') {
+        throw new Error('Genre name cannot be empty');
+    }
+
     // Check if genre exists
     const existingGenre = await prisma.genre.findUnique({
       where: { id },
@@ -86,6 +109,15 @@ export const genreService = {
 
     if (!existingGenre) {
       throw new Error('Genre not found');
+    }
+
+    if (data.name && data.name !== existingGenre.name) {
+        const genreWithName = await prisma.genre.findFirst({
+            where: { name: data.name }
+        });
+        if (genreWithName) {
+            throw new Error('Genre with this name already exists');
+        }
     }
 
     const genre = await prisma.genre.update({
@@ -100,6 +132,8 @@ export const genreService = {
   },
 
   async delete(id: string) {
+    validateId(id, 'Genre');
+    
     // Check if genre exists
     const genre = await prisma.genre.findUnique({
       where: { id },
