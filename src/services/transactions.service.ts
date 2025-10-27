@@ -1,6 +1,13 @@
 import { prisma } from '../prisma/client';
 import { getPagination, getSkip, PaginationResult } from '../utils/pagination';
 
+// Utility for validation
+function validateId(id: string, entity: string): void {
+  if (!id || typeof id !== 'string' || id.trim() === '') {
+    throw new Error(`${entity} ID is invalid or missing`);
+  }
+}
+
 export interface CreateOrderData {
   user_id: string;
   items: Array<{
@@ -34,6 +41,19 @@ export const ordersService = {
   async create(data: CreateOrderData) {
     const { user_id, items } = data;
 
+    validateId(user_id, 'User');
+    if (!items || items.length === 0) {
+      throw new Error('Order must contain at least one item');
+    }
+
+    for (const item of items) {
+        validateId(item.book_id, 'Book');
+        if (typeof item.quantity !== 'number' || item.quantity <= 0 || !Number.isInteger(item.quantity)) {
+            throw new Error(`Quantity for book ID ${item.book_id} must be a positive integer`);
+        }
+    }
+    // End New Validation --->
+
     // Validate user exists
     const user = await prisma.user.findUnique({
       where: { id: user_id },
@@ -49,6 +69,7 @@ export const ordersService = {
       const bookIds = items.map(item => item.book_id);
       const books = await tx.book.findMany({
         where: { id: { in: bookIds } },
+        select: { id: true, title: true, price: true, stock_quantity: true, genre_id: true }
       });
 
       if (books.length !== bookIds.length) {
@@ -85,6 +106,7 @@ export const ordersService = {
       const order = await tx.order.create({
         data: {
           user_id,
+          total: total,
           created_at: new Date(),
           updated_at: new Date(),
           items: {
@@ -162,6 +184,8 @@ export const ordersService = {
   },
 
   async findById(id: string) {
+    validateId(id, 'Order');
+    
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
