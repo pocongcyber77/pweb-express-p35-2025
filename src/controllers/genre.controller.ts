@@ -2,6 +2,25 @@ import { Request, Response } from 'express';
 import { genreService } from '../services/genre.service';
 import { createGenreSchema, updateGenreSchema, paginationSchema } from '../utils/validators';
 
+// Helper function to handle common service errors
+function handleServiceError(res: Response, error: any): Response {
+    const message = error.message;
+
+    // Error: Not Found (e.g., ID tidak ditemukan)
+    if (message.includes('not found') || message.includes('ID is invalid')) {
+        return res.status(404).json({ error: message });
+    }
+    
+    // Error: Bad Request (e.g., data input salah, duplikat nama, atau tidak bisa dihapus karena relasi)
+    if (message.includes('already exists') || message.includes('Cannot delete') || message.includes('required') || message.includes('cannot be empty')) {
+        return res.status(400).json({ error: message });
+    }
+
+    // Default: Internal Server Error (jika error tidak dikenali)
+    console.error('Unhandled Controller Error:', error);
+    return res.status(500).json({ error: 'An unexpected error occurred' });
+}
+
 export const genreController = {
   async create(req: Request, res: Response) {
     try {
@@ -13,12 +32,8 @@ export const genreController = {
         data: genre,
       });
     } catch (error: any) {
-      if (error.message === 'Genre with this name already exists') {
-        return res.status(400).json({
-          error: 'Genre with this name already exists',
-        });
-      }
-      throw error;
+      // Menangkap error validasi Zod atau service
+      return handleServiceError(res, error);
     }
   },
 
@@ -33,7 +48,7 @@ export const genreController = {
         pagination: result.pagination,
       });
     } catch (error) {
-      throw error;
+      return handleServiceError(res, error);
     }
   },
 
@@ -47,12 +62,7 @@ export const genreController = {
         data: genre,
       });
     } catch (error: any) {
-      if (error.message === 'Genre not found') {
-        return res.status(404).json({
-          error: 'Genre not found',
-        });
-      }
-      throw error;
+      return handleServiceError(res, error);
     }
   },
 
@@ -67,12 +77,7 @@ export const genreController = {
         data: genre,
       });
     } catch (error: any) {
-      if (error.message === 'Genre not found') {
-        return res.status(404).json({
-          error: 'Genre not found',
-        });
-      }
-      throw error;
+      return handleServiceError(res, error);
     }
   },
 
@@ -85,17 +90,7 @@ export const genreController = {
         message: result.message,
       });
     } catch (error: any) {
-      if (error.message === 'Genre not found') {
-        return res.status(404).json({
-          error: 'Genre not found',
-        });
-      }
-      if (error.message === 'Cannot delete genre with existing books') {
-        return res.status(400).json({
-          error: 'Cannot delete genre with existing books',
-        });
-      }
-      throw error;
+      return handleServiceError(res, error);
     }
   },
 };
