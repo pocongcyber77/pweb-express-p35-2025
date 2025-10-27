@@ -1,6 +1,42 @@
 import { Request, Response } from 'express';
 import { booksService } from '../services/books.service';
 import { createBookSchema, updateBookSchema, bookQuerySchema } from '../utils/validators';
+import { Prisma } from '@prisma/client';
+import { ZodError } from 'zod';
+import { prisma } from '../prisma/client';
+
+// Helper function to handle common service errors
+function handleServiceError(res: Response, error: any): Response {
+    const message = error.message;
+
+    if (error instanceof ZodError) {
+        // Zod validation failed. Return a detailed 400 Bad Request.
+        const issues = error.errors.map(err => {
+            // Mengambil path (field) yang error dan pesan errornya
+            const path = err.path.join('.');
+            return `${path}: ${err.message}`;
+        }).join('; ');
+
+        return res.status(400).json({ 
+            error: 'Validation failed', 
+            details: issues 
+        });
+    }
+
+    // Error: Not Found (e.g., ID tidak ditemukan)
+    if (message.includes('not found') || message.includes('ID is invalid')) {
+        return res.status(404).json({ error: message });
+    }
+    
+    // Error: Bad Request (e.g., duplikat title, price/stock quantity invalid, tidak bisa dihapus karena relasi)
+    if (message.includes('already exists') || message.includes('Cannot delete') || message.includes('non-negative') || message.includes('integer') || message.includes('is required')) {
+        return res.status(400).json({ error: message });
+    }
+
+    // Default: Internal Server Error (jika error tidak dikenali)
+    console.error('Unhandled Controller Error:', error);
+    return res.status(500).json({ error: 'An unexpected error occurred' });
+}
 
 export const booksController = {
   async create(req: Request, res: Response) {
@@ -13,17 +49,7 @@ export const booksController = {
         data: book,
       });
     } catch (error: any) {
-      if (error.message === 'Genre not found') {
-        return res.status(404).json({
-          error: 'Genre not found',
-        });
-      }
-      if (error.message === 'Book with this title already exists') {
-        return res.status(400).json({
-          error: 'Book with this title already exists',
-        });
-      }
-      throw error;
+      return handleServiceError(res, error);
     }
   },
 
@@ -38,7 +64,7 @@ export const booksController = {
         pagination: result.pagination,
       });
     } catch (error) {
-      throw error;
+      return handleServiceError(res, error);
     }
   },
 
@@ -52,12 +78,7 @@ export const booksController = {
         data: book,
       });
     } catch (error: any) {
-      if (error.message === 'Book not found') {
-        return res.status(404).json({
-          error: 'Book not found',
-        });
-      }
-      throw error;
+      return handleServiceError(res, error);
     }
   },
 
@@ -73,12 +94,7 @@ export const booksController = {
         pagination: result.pagination,
       });
     } catch (error: any) {
-      if (error.message === 'Genre not found') {
-        return res.status(404).json({
-          error: 'Genre not found',
-        });
-      }
-      throw error;
+      return handleServiceError(res, error);
     }
   },
 
@@ -93,17 +109,7 @@ export const booksController = {
         data: book,
       });
     } catch (error: any) {
-      if (error.message === 'Book not found') {
-        return res.status(404).json({
-          error: 'Book not found',
-        });
-      }
-      if (error.message === 'Genre not found') {
-        return res.status(404).json({
-          error: 'Genre not found',
-        });
-      }
-      throw error;
+      return handleServiceError(res, error);
     }
   },
 
@@ -116,17 +122,7 @@ export const booksController = {
         message: result.message,
       });
     } catch (error: any) {
-      if (error.message === 'Book not found') {
-        return res.status(404).json({
-          error: 'Book not found',
-        });
-      }
-      if (error.message === 'Cannot delete book with existing transactions') {
-        return res.status(400).json({
-          error: 'Cannot delete book with existing transactions',
-        });
-      }
-      throw error;
+      return handleServiceError(res, error);
     }
   },
 };
