@@ -1,6 +1,33 @@
 import { prisma } from '../prisma/client';
 import { getPagination, getSkip, PaginationResult } from '../utils/pagination';
 
+// Utility for validation
+function validateId(id: string, entity: string): void {
+  if (!id || typeof id !== 'string' || id.trim() === '') {
+    throw new Error(`${entity} ID is invalid or missing`);
+  }
+}
+
+function validateBookNumericFields(data: Partial<CreateBookData | UpdateBookData>): void {
+  if (data.price !== undefined) {
+    if (typeof data.price !== 'number' || data.price < 0) {
+      throw new Error('Price must be a non-negative number');
+    }
+  }
+
+  if (data.stock_quantity !== undefined) {
+    if (typeof data.stock_quantity !== 'number' || data.stock_quantity < 0 || !Number.isInteger(data.stock_quantity)) {
+      throw new Error('Stock quantity must be a non-negative integer');
+    }
+  }
+
+  if (data.publication_year !== undefined) {
+    if (typeof data.publication_year !== 'number' || !Number.isInteger(data.publication_year) || data.publication_year > new Date().getFullYear()) {
+        throw new Error('Publication year must be a valid integer year');
+    }
+  }
+}
+
 export interface CreateBookData {
   title: string;
   writer: string;
@@ -35,6 +62,14 @@ export interface BookListResult {
 
 export const booksService = {
   async create(data: CreateBookData) {
+    // <--- New Validation
+    validateId(data.genre_id, 'Genre');
+    validateBookNumericFields(data);
+    if (!data.title || data.title.trim() === '') {
+        throw new Error('Book title is required');
+    }
+    // End New Validation --->
+
     // Check if genre exists
     const genre = await prisma.genre.findUnique({
       where: { id: data.genre_id },
@@ -106,6 +141,8 @@ export const booksService = {
   },
 
   async findById(id: string) {
+    validateId(id, 'Book');
+
     const book = await prisma.book.findUnique({
       where: { id },
       include: {
@@ -121,6 +158,7 @@ export const booksService = {
   },
 
   async findByGenre(genre_id: string, page: number, limit: number): Promise<BookListResult> {
+    validateId(genre_id, 'Genre');
     const skip = getSkip(page, limit);
 
     // Check if genre exists
@@ -151,6 +189,9 @@ export const booksService = {
   },
 
   async update(id: string, data: UpdateBookData) {
+    validateId(id, 'Book');
+    validateBookNumericFields(data);
+    
     // Check if book exists
     const existingBook = await prisma.book.findUnique({
       where: { id },
@@ -186,6 +227,8 @@ export const booksService = {
   },
 
   async delete(id: string) {
+    validateId(id, 'Book');
+    
     // Check if book exists
     const book = await prisma.book.findUnique({
       where: { id },
